@@ -13,9 +13,10 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
-  // Participant details
+  // Participant details & selection
   const [studentInfo, setStudentInfo] = useState({ name: '', id: '' });
   const [selectedSet, setSelectedSet] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState('python'); // 'python' | 'c' | 'java'
 
   // Question Sets & Submissions from LocalStorage
   const [questionSets, setQuestionSets] = useState(() => {
@@ -64,6 +65,7 @@ export default function App() {
       studentName: studentInfo.name || 'Anonymous Student',
       studentId: studentInfo.id || 'N/A',
       set: resultData.set,
+      language: resultData.language || selectedLanguage || 'python',
       overallSeconds: resultData.overallSeconds,
       questionSeconds: resultData.questionSeconds,
       answers: resultData.answers
@@ -110,6 +112,8 @@ export default function App() {
             questionSets={questionSets}
             selectedSet={selectedSet}
             setSelectedSet={setSelectedSet}
+            selectedLanguage={selectedLanguage}
+            setSelectedLanguage={setSelectedLanguage}
             onStartQuiz={handleStartQuiz}
             studentInfo={studentInfo}
             setStudentInfo={setStudentInfo}
@@ -119,6 +123,7 @@ export default function App() {
         {viewMode === 'quiz' && activeSetData && (
           <QuizWizard
             setData={activeSetData}
+            language={selectedLanguage}
             onCompleteQuiz={handleCompleteQuiz}
           />
         )}

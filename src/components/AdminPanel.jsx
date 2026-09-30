@@ -87,7 +87,7 @@ export default function AdminPanel({ questionSets, setQuestionSets, submissions,
     // Build CSV headers
     const headers = [
       'Submission ID', 'Timestamp', 'Participant Name', 'Roll No / ID',
-      'Question Set',
+      'Question Set', 'Language',
       'Q1 Time (mm:ss)', 'Q2 Time (mm:ss)', 'Q3 Time (mm:ss)', 'Total Time (mm:ss)',
       'Q1 Answer', 'Q2 Answer', 'Q3 Answer'
     ];
@@ -103,6 +103,7 @@ export default function AdminPanel({ questionSets, setQuestionSets, submissions,
       escape(sub.studentName || 'Anonymous'),
       escape(sub.studentId || ''),
       escape(sub.set || ''),
+      escape(sub.language ? sub.language.toUpperCase() : 'PYTHON'),
       escape(fmt(sub.questionSeconds?.[0])),
       escape(fmt(sub.questionSeconds?.[1])),
       escape(fmt(sub.questionSeconds?.[2])),
@@ -384,7 +385,7 @@ export default function AdminPanel({ questionSets, setQuestionSets, submissions,
                   <table className="w-full text-left text-xs text-slate-300">
                     <thead className="bg-slate-950/90 text-slate-500 font-code text-[11px] uppercase tracking-wider border-b border-slate-800">
                       <tr>
-                        {['Timestamp', 'Participant', 'Set', 'Q1', 'Q2', 'Q3', 'Total', 'Responses'].map((h) => (
+                        {['Timestamp', 'Participant', 'Set', 'Lang', 'Q1', 'Q2', 'Q3', 'Total', 'Responses'].map((h) => (
                           <th key={h} className="px-4 py-3 font-bold">{h}</th>
                         ))}
                       </tr>
@@ -401,6 +402,17 @@ export default function AdminPanel({ questionSets, setQuestionSets, submissions,
                           </td>
                           <td className="px-4 py-3">
                             <span className="px-2 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-300 font-bold border border-indigo-500/25 font-code">{sub.set}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded-md font-bold text-[11px] uppercase font-code ${
+                              (sub.language || 'python').toLowerCase() === 'python'
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                : (sub.language || '').toLowerCase() === 'c'
+                                ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                                : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                            }`}>
+                              {sub.language || 'python'}
+                            </span>
                           </td>
                           {[0, 1, 2].map((qi) => (
                             <td key={qi} className="px-4 py-3 font-code text-slate-300">{fmt(sub.questionSeconds?.[qi])}</td>

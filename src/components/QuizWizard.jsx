@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import CodeBlock from './CodeBlock';
 import {
   Clock, ArrowRight, ArrowLeft, Send, Sparkles,
-  Timer, CheckCircle, Bug, Hash, Brain, Zap, AlertCircle
+  Timer, CheckCircle, Bug, Hash, Brain, Zap, AlertCircle,
+  Terminal, Cpu, Coffee
 } from 'lucide-react';
 
 const Q_TYPES = {
@@ -11,7 +12,13 @@ const Q_TYPES = {
   'Logical Reasoning': { icon: Brain, color: 'text-violet-400', bg: 'badge-logical', glow: 'rgba(168,85,247,0.2)' },
 };
 
-export default function QuizWizard({ setData, onCompleteQuiz }) {
+const LANG_CONFIG = {
+  python: { name: 'Python', icon: Terminal, ext: 'py', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25' },
+  c: { name: 'C', icon: Cpu, ext: 'c', color: 'text-blue-400 bg-blue-500/10 border-blue-500/25' },
+  java: { name: 'Java', icon: Coffee, ext: 'java', color: 'text-amber-400 bg-amber-500/10 border-amber-500/25' },
+};
+
+export default function QuizWizard({ setData, language = 'python', onCompleteQuiz }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [overallSec, setOverallSec] = useState(0);
@@ -20,9 +27,19 @@ export default function QuizWizard({ setData, onCompleteQuiz }) {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const textareaRef = useRef(null);
 
+  const langKey = (language || 'python').toLowerCase();
+  const langMeta = LANG_CONFIG[langKey] || LANG_CONFIG.python;
+  const LangIcon = langMeta.icon;
+
   const questions = setData.questions || [];
-  const q = questions[currentIdx] || {};
-  const qt = Q_TYPES[q.type] || Q_TYPES['Finding Error'];
+  const rawQ = questions[currentIdx] || {};
+
+  // Resolve language-specific content if available
+  const langData = rawQ.languages?.[langKey] || {};
+  const questionText = langData.text || rawQ.text;
+  const questionCode = langData.code !== undefined ? langData.code : rawQ.code;
+
+  const qt = Q_TYPES[rawQ.type] || Q_TYPES['Finding Error'];
   const QIcon = qt.icon;
 
   // Overall timer
@@ -57,7 +74,14 @@ export default function QuizWizard({ setData, onCompleteQuiz }) {
     }
     const finalSec = [...accuQSec];
     finalSec[currentIdx] = (finalSec[currentIdx] || 0) + qSec;
-    onCompleteQuiz({ set: setData.set, overallSeconds: overallSec, questionSeconds: finalSec, answers, questions });
+    onCompleteQuiz({
+      set: setData.set,
+      language: langKey,
+      overallSeconds: overallSec,
+      questionSeconds: finalSec,
+      answers,
+      questions
+    });
   };
 
   const progress = ((currentIdx + 1) / questions.length) * 100;
@@ -72,14 +96,21 @@ export default function QuizWizard({ setData, onCompleteQuiz }) {
 
       <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
 
-        {/* ====== TOP HEADER: SET + TIMERS ====== */}
+        {/* ====== TOP HEADER: SET + LANGUAGE + TIMERS ====== */}
         <div className="glass-elevated rounded-2xl p-4 space-y-4 border border-white/[0.06]">
-          {/* Row 1: Set badge + timers */}
+          {/* Row 1: Set badge + Language Badge + timers */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <span className="bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-black text-sm px-3.5 py-1.5 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.3)]">
                 {setData.set}
               </span>
+
+              {/* Language Chip */}
+              <span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${langMeta.color}`}>
+                <LangIcon className="w-3.5 h-3.5" />
+                <span>{langMeta.name}</span>
+              </span>
+
               <span className="text-slate-400 text-xs font-medium">
                 Question <span className="text-white font-bold">{currentIdx + 1}</span>
                 <span className="text-slate-600"> / {questions.length}</span>
@@ -116,14 +147,13 @@ export default function QuizWizard({ setData, onCompleteQuiz }) {
           <div className="flex items-center gap-2">
             {questions.map((qItem, idx) => {
               const itemQt = Q_TYPES[qItem.type] || Q_TYPES['Finding Error'];
-              const ItemIcon = itemQt.icon;
               const isActive = idx === currentIdx;
               const isAnswered = !!answers[idx]?.trim();
               return (
                 <button
                   key={idx}
                   onClick={() => commitAndGo(idx)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     isActive
                       ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                       : isAnswered
@@ -153,27 +183,28 @@ export default function QuizWizard({ setData, onCompleteQuiz }) {
           style={{ boxShadow: `0 0 60px -20px ${qt.glow}, 0 20px 40px rgba(0,0,0,0.5)` }}
         >
           {/* Question type header strip */}
-          <div className={`px-6 py-3 border-b border-white/[0.05] flex items-center justify-between`}>
+          <div className="px-6 py-3 border-b border-white/[0.05] flex items-center justify-between">
             <span className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest ${qt.color}`}>
               <QIcon className="w-4 h-4" />
-              {q.type}
+              {rawQ.type}
             </span>
             <span className="text-xs text-slate-600 font-code">
-              #{q.id || `q_${currentIdx + 1}`}
+              #{rawQ.id || `q_${currentIdx + 1}`}
             </span>
           </div>
 
           <div className="p-6 sm:p-8 space-y-6">
             {/* Question text */}
             <h3 className="text-lg sm:text-xl font-bold text-white leading-relaxed">
-              {q.text}
+              {questionText}
             </h3>
 
             {/* Code block */}
-            {q.code && (
+            {questionCode && (
               <CodeBlock
-                code={q.code}
-                title={`tech_arena_${setData.set.toLowerCase().replace(' ', '_')}_q${currentIdx + 1}.py`}
+                code={questionCode}
+                language={langKey}
+                title={`tech_arena_${setData.set.toLowerCase().replace(' ', '_')}_q${currentIdx + 1}.${langMeta.ext}`}
               />
             )}
 
@@ -181,7 +212,7 @@ export default function QuizWizard({ setData, onCompleteQuiz }) {
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                Your Answer
+                Your Answer ({langMeta.name})
               </label>
               <textarea
                 ref={textareaRef}
@@ -192,10 +223,10 @@ export default function QuizWizard({ setData, onCompleteQuiz }) {
                   if (submitAttempted) setSubmitAttempted(false);
                 }}
                 placeholder={
-                  q.type === 'Finding Error'
+                  rawQ.type === 'Finding Error'
                     ? 'State the line number and exact error description...'
-                    : q.type === 'Numerical Output'
-                    ? 'Enter the exact numerical output (e.g. 44, 6, 64)...'
+                    : rawQ.type === 'Numerical Output'
+                    ? 'Enter the exact numerical output...'
                     : 'Write your logical reasoning and final answer...'
                 }
                 className={`w-full bg-slate-950/90 rounded-xl p-4 text-sm font-code text-slate-100 placeholder-slate-700 outline-none transition-all resize-none leading-relaxed ${

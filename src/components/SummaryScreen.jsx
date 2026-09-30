@@ -1,10 +1,19 @@
 import React, { useEffect } from 'react';
-import { CheckCircle2, Clock, Trophy, RotateCcw, FileText, Bug, Hash, Brain, Sparkles } from 'lucide-react';
+import {
+  CheckCircle2, Clock, Trophy, RotateCcw, FileText, Bug,
+  Hash, Brain, Sparkles, Terminal, Cpu, Coffee, Download
+} from 'lucide-react';
 
 const Q_TYPES = {
   'Finding Error': { icon: Bug, color: 'text-rose-400', badge: 'badge-error' },
   'Numerical Output': { icon: Hash, color: 'text-sky-400', badge: 'badge-numerical' },
   'Logical Reasoning': { icon: Brain, color: 'text-violet-400', badge: 'badge-logical' },
+};
+
+const LANG_CONFIG = {
+  python: { name: 'Python', icon: Terminal, color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' },
+  c: { name: 'C', icon: Cpu, color: 'text-blue-400 bg-blue-500/15 border-blue-500/30' },
+  java: { name: 'Java', icon: Coffee, color: 'text-amber-400 bg-amber-500/15 border-amber-500/30' },
 };
 
 export default function SummaryScreen({ resultData, studentInfo, onResetToHome }) {
@@ -29,8 +38,51 @@ export default function SummaryScreen({ resultData, studentInfo, onResetToHome }
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   };
 
-  const { set, overallSeconds, questionSeconds, answers, questions } = resultData || {};
+  const { set, language = 'python', overallSeconds, questionSeconds, answers, questions } = resultData || {};
   const answeredCount = Object.values(answers || {}).filter((a) => a?.trim()).length;
+
+  const langKey = (language || 'python').toLowerCase();
+  const langMeta = LANG_CONFIG[langKey] || LANG_CONFIG.python;
+  const LangIcon = langMeta.icon;
+
+  const handleDownloadReceipt = () => {
+    const lines = [
+      '========================================',
+      '     TECH ARENA 2K26 - SUBMISSION RECEIPT',
+      '========================================',
+      `Timestamp       : ${new Date().toLocaleString()}`,
+      `Participant     : ${studentInfo.name || 'Anonymous'}`,
+      `Roll No / ID    : ${studentInfo.id || 'N/A'}`,
+      `Question Set    : ${set}`,
+      `Language        : ${langMeta.name}`,
+      `Total Time      : ${fmt(overallSeconds)}`,
+      '----------------------------------------',
+      'QUESTION TIMING & RESPONSES:',
+    ];
+
+    questions?.forEach((qItem, idx) => {
+      const lData = qItem.languages?.[langKey] || {};
+      const qText = lData.text || qItem.text;
+      const uAns = answers?.[idx] || 'N/A';
+      const qT = fmt(questionSeconds?.[idx] || 0);
+      lines.push(`\n[Q${idx + 1} - ${qItem.type}] (Time: ${qT})`);
+      lines.push(`Prompt : ${qText}`);
+      lines.push(`Answer : ${uAns}`);
+    });
+
+    lines.push('\n========================================');
+    lines.push('Verified for AISA Evaluation Board');
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `tech_arena_receipt_${(studentInfo.name || 'participant').replace(/\s+/g, '_')}.txt`
+    });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  };
 
   return (
     <div className="relative flex-1">
@@ -60,13 +112,13 @@ export default function SummaryScreen({ resultData, studentInfo, onResetToHome }
           </div>
 
           <h1 className="mt-5 text-3xl font-black text-white">
-            Quiz Submitted!
+            Quiz Submitted Successfully!
           </h1>
           <p className="text-slate-400 text-sm mt-1 max-w-md mx-auto">
-            Your responses have been recorded for Tech Arena 2k26. The coordinator will verify your answers.
+            Your answers and question timestamps have been recorded. The coordinator will review your submission.
           </p>
 
-          {/* Participant meta chip */}
+          {/* Participant meta chips */}
           <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-3 glass border border-white/[0.07] px-5 py-2.5 rounded-full text-xs">
             <span className="text-slate-400">Participant:</span>
             <span className="font-bold text-white">{studentInfo.name || 'Anonymous'}</span>
@@ -75,7 +127,12 @@ export default function SummaryScreen({ resultData, studentInfo, onResetToHome }
               <span className="font-code text-cyan-400 font-bold">{studentInfo.id}</span>
             </>}
             <span className="text-slate-700">·</span>
-            <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold">{set}</span>
+            <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-full font-bold">{set}</span>
+            <span className="text-slate-700">·</span>
+            <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold border ${langMeta.color}`}>
+              <LangIcon className="w-3 h-3" />
+              {langMeta.name}
+            </span>
             <span className="text-slate-700">·</span>
             <span className="text-emerald-400 font-semibold">{answeredCount}/{questions?.length || 3} answered</span>
           </div>
@@ -119,15 +176,29 @@ export default function SummaryScreen({ resultData, studentInfo, onResetToHome }
 
         {/* ====== RESPONSE REVIEW ====== */}
         <div className="space-y-4">
-          <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
-            <FileText className="w-4 h-4 text-indigo-400" />
-            Submitted Responses &amp; Reference Key
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+              <FileText className="w-4 h-4 text-indigo-400" />
+              Submitted Responses &amp; Reference Key
+            </h2>
+            <button
+              onClick={handleDownloadReceipt}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass border border-white/[0.08] hover:border-cyan-500/30 text-slate-300 hover:text-white font-semibold text-xs transition-all cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              Download Receipt
+            </button>
+          </div>
 
           {questions?.map((qItem, idx) => {
             const qt = Q_TYPES[qItem.type] || Q_TYPES['Finding Error'];
             const QIcon = qt.icon;
             const userAns = answers?.[idx];
+
+            const lData = qItem.languages?.[langKey] || {};
+            const qText = lData.text || qItem.text;
+            const qAns = lData.answer || qItem.answer;
+
             return (
               <div key={idx} className="glass-card rounded-2xl border border-white/[0.06] overflow-hidden">
                 {/* Header row */}
@@ -143,12 +214,12 @@ export default function SummaryScreen({ resultData, studentInfo, onResetToHome }
                 </div>
 
                 <div className="p-6 space-y-4">
-                  <p className="text-sm font-semibold text-slate-200">{qItem.text}</p>
+                  <p className="text-sm font-semibold text-slate-200">{qText}</p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* User's submission */}
                     <div className="bg-slate-950/70 rounded-xl p-4 border border-slate-800/80">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Your Submission:</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Your Submission ({langMeta.name}):</span>
                       <p className="text-xs font-code text-cyan-200 whitespace-pre-wrap leading-relaxed">
                         {userAns?.trim() || <span className="text-slate-600 italic">No answer provided</span>}
                       </p>
@@ -161,7 +232,7 @@ export default function SummaryScreen({ resultData, studentInfo, onResetToHome }
                         Coordinator Reference Key:
                       </span>
                       <p className="text-xs font-code text-amber-200/90 whitespace-pre-wrap leading-relaxed">
-                        {qItem.answer || 'Refer to coordinator evaluation board.'}
+                        {qAns || 'Refer to coordinator evaluation board.'}
                       </p>
                     </div>
                   </div>
@@ -172,7 +243,7 @@ export default function SummaryScreen({ resultData, studentInfo, onResetToHome }
         </div>
 
         {/* Return CTA */}
-        <div className="text-center pt-2 pb-4">
+        <div className="text-center pt-2 pb-4 flex items-center justify-center gap-4 flex-wrap">
           <button
             onClick={onResetToHome}
             className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-2xl font-extrabold text-xs tracking-wider glass border border-white/[0.08] hover:border-cyan-500/30 text-slate-200 hover:text-white transition-all shine shadow-lg cursor-pointer"
