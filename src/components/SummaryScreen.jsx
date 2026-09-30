@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import {
   CheckCircle2, Clock, Trophy, RotateCcw, FileText, Bug,
-  Hash, Brain, Sparkles, Terminal, Cpu, Coffee, Download
+  Hash, Brain, Sparkles, Terminal, Cpu, Coffee, Download, Database
 } from 'lucide-react';
 
 const Q_TYPES = {
@@ -78,6 +78,29 @@ export default function SummaryScreen({ resultData, studentInfo, onResetToHome }
       href: URL.createObjectURL(blob),
       download: `tech_arena_receipt_${(studentInfo.name || 'participant').replace(/\s+/g, '_')}.txt`
     });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  };
+
+  const handleExportJSON = () => {
+    const exportData = {
+      id: `sub_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      studentName: studentInfo.name || 'Anonymous Student',
+      studentId: studentInfo.id || 'N/A',
+      set: set,
+      language: language || 'python',
+      overallSeconds: overallSeconds,
+      questionSeconds: questionSeconds,
+      answers: answers
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `tech_arena_data_${(studentInfo.name || 'participant').replace(/\s+/g, '_')}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -181,13 +204,22 @@ export default function SummaryScreen({ resultData, studentInfo, onResetToHome }
               <FileText className="w-4 h-4 text-indigo-400" />
               Submitted Responses &amp; Reference Key
             </h2>
-            <button
-              onClick={handleDownloadReceipt}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass border border-white/[0.08] hover:border-cyan-500/30 text-slate-300 hover:text-white font-semibold text-xs transition-all cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-cyan-400" />
-              Download Receipt
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleExportJSON}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass border border-emerald-500/30 hover:border-emerald-500/60 text-emerald-300 hover:text-emerald-100 font-semibold text-xs transition-all cursor-pointer"
+              >
+                <Database className="w-3.5 h-3.5 text-emerald-400" />
+                Export JSON
+              </button>
+              <button
+                onClick={handleDownloadReceipt}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass border border-white/[0.08] hover:border-cyan-500/30 text-slate-300 hover:text-white font-semibold text-xs transition-all cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-cyan-400" />
+                Download Receipt
+              </button>
+            </div>
           </div>
 
           {questions?.map((qItem, idx) => {

@@ -6,6 +6,7 @@ import SummaryScreen from './components/SummaryScreen';
 import AdminModal from './components/AdminModal';
 import AdminPanel from './components/AdminPanel';
 import { DEFAULT_QUESTION_SETS } from './data/defaultQuestions';
+import { supabase } from './lib/supabaseClient';
 
 export default function App() {
   // Navigation & Authentication state
@@ -57,7 +58,7 @@ export default function App() {
     setViewMode('quiz');
   };
 
-  const handleCompleteQuiz = (resultData) => {
+  const handleCompleteQuiz = async (resultData) => {
     // Record submission into log list
     const newSubmission = {
       id: `sub_${Date.now()}`,
@@ -74,6 +75,30 @@ export default function App() {
     setSubmissions((prev) => [newSubmission, ...prev]);
     setQuizResult(resultData);
     setViewMode('summary');
+
+    // Attempt to sync with Supabase
+    try {
+      const { error } = await supabase.from('submissions').insert([
+        {
+          id: newSubmission.id,
+          timestamp: newSubmission.timestamp,
+          studentName: newSubmission.studentName,
+          studentId: newSubmission.studentId,
+          set: newSubmission.set,
+          language: newSubmission.language,
+          overallSeconds: newSubmission.overallSeconds,
+          questionSeconds: newSubmission.questionSeconds,
+          answers: newSubmission.answers
+        }
+      ]);
+      if (error) {
+        console.error('Error syncing submission to Supabase:', error);
+      } else {
+        console.log('Submission successfully synced to Supabase.');
+      }
+    } catch (e) {
+      console.error('Exception syncing submission to Supabase:', e);
+    }
   };
 
   const handleResetToHome = () => {

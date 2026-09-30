@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   Plus, Edit2, Trash2, RotateCcw, Download, Search,
   Database, Users, FilePlus, Save, X, Bug, Hash, Brain,
-  CheckCircle2, AlertTriangle, FileSpreadsheet, XCircle
+  CheckCircle2, AlertTriangle, FileSpreadsheet, XCircle, Upload
 } from 'lucide-react';
 import CodeBlock from './CodeBlock';
+import { supabase } from '../lib/supabaseClient';
 
 const Q_BADGES = {
   'Finding Error': { cls: 'badge-error', icon: Bug },
@@ -45,6 +46,28 @@ export default function AdminPanel({ questionSets, setQuestionSets, submissions,
     setQForm({ type: q.type, text: q.text, code: q.code || '', answer: q.answer || '', targetSet: setName });
     setIsQModal(true);
   };
+
+  useEffect(() => {
+    if (tab === 'submissions') {
+      const fetchSubmissions = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('submissions')
+            .select('*')
+            .order('timestamp', { ascending: false });
+          
+          if (error) throw error;
+          if (data && data.length > 0) {
+            setSubmissions(data);
+          }
+        } catch (error) {
+          console.error("Error fetching submissions from Supabase:", error);
+          showToast("Failed to sync cloud submissions.", "error");
+        }
+      };
+      fetchSubmissions();
+    }
+  }, [tab, setSubmissions]);
 
   const saveQ = (e) => {
     e.preventDefault();
@@ -138,6 +161,41 @@ export default function AdminPanel({ questionSets, setQuestionSets, submissions,
     setSubmissions([]);
     setClearConfirm(false);
     showToast(`Cleared ${count} submission log${count > 1 ? 's' : ''}`, 'info');
+  };
+
+  const importJSON = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const jsonData = JSON.parse(event.target.result);
+        if (Array.isArray(jsonData)) {
+          setSubmissions(prev => {
+            const newSubs = [...jsonData, ...prev];
+            // Deduplicate by ID
+            const uniqueSubs = Array.from(new Map(newSubs.map(item => [item.id, item])).values());
+            return uniqueSubs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+          });
+          showToast(`Imported array of ${jsonData.length} submissions.`, 'success');
+        } else if (jsonData && jsonData.id) {
+          setSubmissions(prev => {
+            const exists = prev.some(s => s.id === jsonData.id);
+            if (exists) return prev;
+            const newSubs = [jsonData, ...prev];
+            return newSubs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+          });
+          showToast('Imported single submission data.', 'success');
+        } else {
+          showToast('Invalid JSON format for submissions.', 'error');
+        }
+      } catch (err) {
+        showToast('Error parsing JSON file.', 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset input
   };
 
   const fmt = (s) => {
@@ -261,6 +319,13 @@ export default function AdminPanel({ questionSets, setQuestionSets, submissions,
                 <FileSpreadsheet className="w-4 h-4" />
                 Export CSV
               </button>
+              
+              {/* Import JSON */}
+              <label className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl glass border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 font-bold text-xs cursor-pointer transition-all">
+                <Upload className="w-4 h-4" />
+                Import JSON
+                <input type="file" accept=".json" onChange={importJSON} className="hidden" />
+              </label>
 
               {/* Clear button — two-step confirm */}
               <button
