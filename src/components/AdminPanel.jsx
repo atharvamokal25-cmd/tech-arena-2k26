@@ -57,8 +57,14 @@ export default function AdminPanel({ questionSets, setQuestionSets, submissions,
             .order('timestamp', { ascending: false });
           
           if (error) throw error;
-          if (data && data.length > 0) {
-            setSubmissions(data);
+          if (data) {
+            setSubmissions(prev => {
+              // Merge cloud data with any local storage data, deduplicate by ID
+              const combined = [...data, ...prev];
+              const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+              // Sort by newest first
+              return unique.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            });
           }
         } catch (error) {
           console.error("Error fetching submissions from Supabase:", error);
